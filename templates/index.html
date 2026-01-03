@@ -561,23 +561,79 @@
         @media (max-width: 680px) {
             .film-border.left,
             .film-border.right {
-                width: 24px;
+                width: 16px;
+            }
+
+            .film-border.left::before,
+            .film-border.right::before {
+                width: 10px;
             }
 
             .container {
-                padding: 60px 16px;
+                padding: 40px 12px;
+                margin-left: 16px;
+                margin-right: 16px;
             }
 
             .logo {
-                font-size: 3rem;
+                font-size: 2.5rem;
             }
 
             .logo::after {
                 display: none;
             }
 
+            .tagline {
+                font-size: 0.65rem;
+                letter-spacing: 0.2em;
+            }
+
+            .info-banner {
+                padding: 16px 20px;
+                margin-bottom: 24px;
+            }
+
+            .info-banner p {
+                font-size: 0.85rem;
+                line-height: 1.6;
+            }
+
+            .upload-zone {
+                padding: 50px 20px;
+            }
+
+            .upload-icon {
+                width: 60px;
+                height: 60px;
+                margin-bottom: 16px;
+            }
+
+            .upload-title {
+                font-size: 1.4rem;
+            }
+
+            .upload-hint {
+                font-size: 0.6rem;
+            }
+
+            .results-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .results-title {
+                font-size: 1.5rem;
+            }
+
             .download-grid {
                 grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .download-btn {
+                padding: 16px 20px;
+                font-size: 0.85rem;
             }
 
             .download-btn.voice-btn {
@@ -586,7 +642,65 @@
 
             .stats {
                 flex-direction: column;
-                gap: 16px;
+                gap: 12px;
+                padding: 16px 0;
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+            }
+
+            .stat-label {
+                font-size: 0.55rem;
+            }
+
+            .section-label {
+                font-size: 0.6rem;
+            }
+
+            .processing-visual {
+                width: 100px;
+                height: 70px;
+            }
+
+            .film-reel {
+                width: 50px;
+                height: 50px;
+            }
+
+            .processing-text {
+                font-size: 1.2rem;
+            }
+
+            .reset-btn {
+                padding: 16px;
+                font-size: 0.75rem;
+            }
+
+            .footer {
+                margin-top: 50px;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 400px) {
+            .film-border.left,
+            .film-border.right {
+                width: 10px;
+            }
+
+            .container {
+                margin-left: 10px;
+                margin-right: 10px;
+                padding: 30px 10px;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .upload-zone {
+                padding: 40px 16px;
             }
         }
     </style>
