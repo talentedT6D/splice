@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import subprocess
@@ -140,7 +140,7 @@ def voice_change_elevenlabs(audio_path, output_dir, job_id):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return jsonify({"status": "ok", "message": "Splice API Backend"})
 
 
 @app.route("/process", methods=["POST", "OPTIONS"])
