@@ -5,4 +5,4 @@ nixPkgs = ["python311Full", "python311Packages.pip", "ffmpeg"]
 cmds = ["python3 -m venv /app/venv", "/app/venv/bin/pip install -r requirements.txt"]
 
 [start]
-cmd = "/app/venv/bin/gunicorn app:app --bind 0.0.0.0:$PORT"
+cmd = "bash -c 'source /app/venv/bin/activate && gunicorn app:app --bind 0.0.0.0:$PORT'"
