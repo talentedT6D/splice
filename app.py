@@ -57,7 +57,7 @@ def split_video(video_path, output_dir, job_id):
     cmd1 = [
         "ffmpeg", "-y", "-i", str(video_path),
         "-t", str(split_point),
-        "-vf", "scale=-2:720",
+        "-vf", "scale=720:-2",
         "-c:v", "libx264", "-preset", "fast", "-crf", "23",
         "-c:a", "aac", "-b:a", "128k",
         str(part1_path)
@@ -70,7 +70,7 @@ def split_video(video_path, output_dir, job_id):
         "ffmpeg", "-y", "-i", str(video_path),
         "-ss", str(split_point),
         "-t", str(remaining),
-        "-vf", "scale=-2:720",
+        "-vf", "scale=720:-2",
         "-c:v", "libx264", "-preset", "fast", "-crf", "23",
         "-c:a", "aac", "-b:a", "128k",
         str(part2_path)
