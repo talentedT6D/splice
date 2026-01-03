@@ -7,7 +7,7 @@ import requests
 from pathlib import Path
 
 app = Flask(__name__)
-CORS(app, origins="*", supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.after_request
 def after_request(response):
@@ -16,11 +16,20 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
-# Use /tmp for Vercel serverless
+# Use /tmp for Railway/serverless
 UPLOAD_FOLDER = Path("/tmp/uploads")
 OUTPUT_FOLDER = Path("/tmp/outputs")
-UPLOAD_FOLDER.mkdir(exist_ok=True)
-OUTPUT_FOLDER.mkdir(exist_ok=True)
+
+def ensure_dirs():
+    UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+    OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
+
+ensure_dirs()
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
 
 # ElevenLabs config
 ELEVENLABS_API_KEY = "sk_15030702d8a0c524641ab32fa7269048a83dfdabfbdec8cf"
@@ -134,8 +143,12 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/process", methods=["POST"])
+@app.route("/process", methods=["POST", "OPTIONS"])
 def process_video():
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
     if "video" not in request.files:
         return jsonify({"error": "No video file provided"}), 400
 
