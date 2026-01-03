@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPLICE — Video Splitter + Voice Transform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0a0a0a;
+            --paper: #f5f0e8;
+            --film: #1a1a1a;
+            --sprocket: #2d2d2d;
+            --accent: #ff3d00;
+            --accent-glow: rgba(255, 61, 0, 0.3);
+            --cream: #faf7f2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--paper);
+            min-height: 100vh;
+            color: var(--ink);
+            overflow-x: hidden;
+        }
+
+        /* Grain overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Film strip borders */
+        .film-border {
+            position: fixed;
+            background: var(--film);
+            z-index: 100;
+        }
+
+        .film-border.left,
+        .film-border.right {
+            width: 48px;
+            height: 100vh;
+            top: 0;
+        }
+
+        .film-border.left { left: 0; }
+        .film-border.right { right: 0; }
+
+        /* Sprocket holes */
+        .film-border.left::before,
+        .film-border.right::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 100%;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 30px,
+                var(--sprocket) 30px,
+                var(--sprocket) 32px,
+                transparent 32px,
+                transparent 48px,
+                var(--paper) 48px,
+                var(--paper) 68px,
+                transparent 68px,
+                transparent 86px,
+                var(--sprocket) 86px,
+                var(--sprocket) 88px,
+                transparent 88px,
+                transparent 100px
+            );
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 80px 24px;
+            position: relative;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeUp 0.8s ease-out;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            font-family: 'Instrument Serif', serif;
+            font-size: 4.5rem;
+            font-weight: 400;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 16px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .logo::after {
+            content: '—';
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent);
+            font-size: 2rem;
+        }
+
+        .tagline {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: #666;
+        }
+
+        /* Info banner */
+        .info-banner {
+            background: var(--ink);
+            color: var(--paper);
+            padding: 20px 28px;
+            margin-bottom: 40px;
+            position: relative;
+            animation: fadeUp 0.8s ease-out 0.1s both;
+        }
+
+        .info-banner::before {
+            content: 'INFO';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: var(--accent);
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 500;
+            padding: 4px 10px;
+            letter-spacing: 0.1em;
+        }
+
+        .info-banner p {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            font-weight: 400;
+        }
+
+        .info-banner strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Upload zone */
+        .upload-zone {
+            border: 3px solid var(--ink);
+            background: var(--cream);
+            padding: 80px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            position: relative;
+            animation: fadeUp 0.8s ease-out 0.2s both;
+        }
+
+        .upload-zone::before,
+        .upload-zone::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--ink);
+            transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .upload-zone::before {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .upload-zone::after {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .upload-zone:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .upload-zone:hover::before,
+        .upload-zone:hover::after {
+            width: 40px;
+            height: 40px;
+            border-color: var(--accent);
+        }
+
+        .upload-zone.dragover {
+            background: var(--ink);
+            color: var(--paper);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            position: relative;
+        }
+
+        .upload-icon svg {
+            width: 100%;
+            height: 100%;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.5;
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .upload-zone:hover .upload-icon svg {
+            transform: translateY(-8px);
+        }
+
+        .upload-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.8rem;
+            margin-bottom: 12px;
+            font-style: italic;
+        }
+
+        .upload-hint {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            opacity: 0.6;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Processing state */
+        .processing {
+            text-align: center;
+            padding: 80px 40px;
+            display: none;
+            animation: fadeUp 0.5s ease-out;
+        }
+
+        .processing-visual {
+            width: 120px;
+            height: 80px;
+            margin: 0 auto 32px;
+            position: relative;
+        }
+
+        .film-reel {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--ink);
+            border-radius: 50%;
+            animation: spin 2s linear infinite;
+        }
+
+        .film-reel::before {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border: 2px solid var(--ink);
+            border-radius: 50%;
+        }
+
+        .film-reel::after {
+            content: '';
+            position: absolute;
+            inset: 20px;
+            background: var(--ink);
+            border-radius: 50%;
+        }
+
+        .film-reel.left {
+            left: 0;
+            top: 10px;
+        }
+
+        .film-reel.right {
+            right: 0;
+            top: 10px;
+            animation-delay: -0.5s;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .processing-text {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.5rem;
+            font-style: italic;
+            margin-bottom: 8px;
+        }
+
+        .processing-sub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #888;
+        }
+
+        /* Results */
+        .results {
+            display: none;
+            animation: fadeUp 0.6s ease-out;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--ink);
+        }
+
+        .results-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 2rem;
+        }
+
+        .job-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            background: var(--ink);
+            color: var(--paper);
+            padding: 6px 12px;
+            letter-spacing: 0.05em;
+        }
+
+        .result-section {
+            margin-bottom: 32px;
+        }
+
+        .section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: #888;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--cream);
+            border: 2px solid var(--ink);
+            padding: 20px 24px;
+            text-decoration: none;
+            color: var(--ink);
+            font-family: 'Syne', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .download-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--accent);
+            transform: translateX(-101%);
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .download-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .download-btn .arrow {
+            position: relative;
+            z-index: 1;
+            transition: transform 0.3s ease;
+        }
+
+        .download-btn:hover {
+            color: white;
+        }
+
+        .download-btn:hover::before {
+            transform: translateX(0);
+        }
+
+        .download-btn:hover .arrow {
+            transform: translateX(4px);
+        }
+
+        .download-btn.voice-btn {
+            grid-column: span 2;
+            background: var(--ink);
+            color: var(--paper);
+            border-color: var(--ink);
+        }
+
+        .download-btn.voice-btn::before {
+            background: var(--accent);
+        }
+
+        .download-btn.voice-btn:hover {
+            color: white;
+        }
+
+        .voice-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0.6;
+        }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            gap: 32px;
+            padding: 24px 0;
+            border-top: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 32px;
+        }
+
+        .stat {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-family: 'Instrument Serif', serif;
+            font-size: 2rem;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #888;
+        }
+
+        /* Reset button */
+        .reset-btn {
+            width: 100%;
+            padding: 20px;
+            background: transparent;
+            border: 2px solid var(--ink);
+            color: var(--ink);
+            font-family: 'Syne', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .reset-btn:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        /* Error */
+        .error {
+            background: #fff0f0;
+            border: 2px solid var(--accent);
+            padding: 20px 24px;
+            margin-top: 24px;
+            display: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--accent);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 80px;
+            padding-top: 32px;
+            border-top: 1px solid #ddd;
+        }
+
+        .footer-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #aaa;
+        }
+
+        .footer-text span {
+            color: var(--accent);
+        }
+
+        /* Mobile */
+        @media (max-width: 680px) {
+            .film-border.left,
+            .film-border.right {
+                width: 24px;
+            }
+
+            .container {
+                padding: 60px 16px;
+            }
+
+            .logo {
+                font-size: 3rem;
+            }
+
+            .logo::after {
+                display: none;
+            }
+
+            .download-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .download-btn.voice-btn {
+                grid-column: span 1;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="film-border left"></div>
+    <div class="film-border right"></div>
+
+    <div class="container">
+        <header class="header">
+            <h1 class="logo">SPLICE</h1>
+            <p class="tagline">Split Video + Transform Voice</p>
+        </header>
+
+        <div class="info-banner">
+            <p>Upload a video <strong>(max 60 seconds)</strong>. It will be split into two parts, each under 30 seconds. Audio is transformed using <strong>Avantika's voice</strong> via ElevenLabs.</p>
+        </div>
+
+        <div class="upload-zone" id="uploadBox">
+            <div class="upload-icon">
+                <svg viewBox="0 0 80 80">
+                    <rect x="8" y="16" width="64" height="48" rx="4"/>
+                    <circle cx="40" cy="40" r="12"/>
+                    <circle cx="40" cy="40" r="4"/>
+                    <path d="M8 28 L72 28"/>
+                    <path d="M8 52 L72 52"/>
+                </svg>
+            </div>
+            <div class="upload-title">Drop your video here</div>
+            <div class="upload-hint">MP4, MOV, WebM — Maximum 60 seconds</div>
+            <input type="file" id="fileInput" accept="video/*">
+        </div>
+
+        <div class="processing" id="processing">
+            <div class="processing-visual">
+                <div class="film-reel left"></div>
+                <div class="film-reel right"></div>
+            </div>
+            <p class="processing-text">Splicing your video...</p>
+            <p class="processing-sub">This may take a moment</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="results-header">
+                <h2 class="results-title">Ready to Download</h2>
+                <span class="job-id" id="jobIdBadge">—</span>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="durationStat">—</div>
+                    <div class="stat-label">Original Duration</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">2</div>
+                    <div class="stat-label">Parts Created</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">&lt;30s</div>
+                    <div class="stat-label">Each Part</div>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <div class="section-label">Video Parts</div>
+                <div class="download-grid">
+                    <a href="#" class="download-btn" id="part1Btn">
+                        <span>Part 1</span>
+                        <span class="arrow">→</span>
+                    </a>
+                    <a href="#" class="download-btn" id="part2Btn">
+                        <span>Part 2</span>
+                        <span class="arrow">→</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <div class="section-label">Audio</div>
+                <div class="download-grid">
+                    <a href="#" class="download-btn" id="originalAudioBtn">
+                        <span>Original Audio</span>
+                        <span class="arrow">→</span>
+                    </a>
+                    <a href="#" class="download-btn voice-btn" id="voiceChangedBtn">
+                        <div>
+                            <span>Voice Transformed</span>
+                            <div class="voice-label">Avantika via ElevenLabs</div>
+                        </div>
+                        <span class="arrow">→</span>
+                    </a>
+                </div>
+            </div>
+
+            <button class="reset-btn" onclick="resetForm()">Process Another Video</button>
+        </div>
+
+        <footer class="footer">
+            <p class="footer-text">Powered by <span>FFmpeg</span> + <span>ElevenLabs</span></p>
+        </footer>
+    </div>
+
+    <script>
+        const uploadBox = document.getElementById('uploadBox');
+        const fileInput = document.getElementById('fileInput');
+        const processing = document.getElementById('processing');
+        const results = document.getElementById('results');
+        const errorDiv = document.getElementById('error');
+
+        uploadBox.addEventListener('click', () => fileInput.click());
+
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.classList.add('dragover');
+        });
+
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.classList.remove('dragover');
+        });
+
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        async function handleFile(file) {
+            if (!file.type.startsWith('video/')) {
+                showError('Please upload a video file');
+                return;
+            }
+
+            uploadBox.style.display = 'none';
+            processing.style.display = 'block';
+            errorDiv.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('video', file);
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                processing.style.display = 'none';
+                results.style.display = 'block';
+
+                document.getElementById('part1Btn').href = data.part1;
+                document.getElementById('part2Btn').href = data.part2;
+                document.getElementById('originalAudioBtn').href = data.original_audio;
+                document.getElementById('jobIdBadge').textContent = data.job_id;
+                document.getElementById('durationStat').textContent = data.duration.toFixed(1) + 's';
+
+                if (data.voice_changed) {
+                    document.getElementById('voiceChangedBtn').href = data.voice_changed;
+                    document.getElementById('voiceChangedBtn').style.display = 'flex';
+                } else {
+                    document.getElementById('voiceChangedBtn').style.display = 'none';
+                }
+
+            } catch (err) {
+                showError('Failed to process video: ' + err.message);
+            }
+        }
+
+        function showError(message) {
+            processing.style.display = 'none';
+            uploadBox.style.display = 'block';
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function resetForm() {
+            results.style.display = 'none';
+            uploadBox.style.display = 'block';
+            fileInput.value = '';
+            errorDiv.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
