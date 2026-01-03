@@ -1,11 +1,2 @@
 [phases.setup]
-nixPkgs = ["python3", "python3Packages.pip", "python3Packages.virtualenv", "ffmpeg"]
-
-[phases.install]
-cmds = [
-    "python3 -m venv /app/venv",
-    "/app/venv/bin/pip install -r requirements.txt"
-]
-
-[start]
-cmd = "/app/venv/bin/gunicorn app:app --bind 0.0.0.0:$PORT"
+aptPkgs = ["ffmpeg"]
