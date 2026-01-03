@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file, render_template
+from flask_cors import CORS
 import os
 import subprocess
 import uuid
@@ -6,6 +7,7 @@ import requests
 from pathlib import Path
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Use /tmp for Vercel serverless
 UPLOAD_FOLDER = Path("/tmp/uploads")

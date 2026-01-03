@@ -737,8 +737,10 @@
             const formData = new FormData();
             formData.append('video', file);
 
+            const API_BASE = 'https://splice-production-4e8e.up.railway.app';
+
             try {
-                const response = await fetch('/process', {
+                const response = await fetch(API_BASE + '/process', {
                     method: 'POST',
                     body: formData
                 });
@@ -753,14 +755,14 @@
                 processing.style.display = 'none';
                 results.style.display = 'block';
 
-                document.getElementById('part1Btn').href = data.part1;
-                document.getElementById('part2Btn').href = data.part2;
-                document.getElementById('originalAudioBtn').href = data.original_audio;
+                document.getElementById('part1Btn').href = API_BASE + data.part1;
+                document.getElementById('part2Btn').href = API_BASE + data.part2;
+                document.getElementById('originalAudioBtn').href = API_BASE + data.original_audio;
                 document.getElementById('jobIdBadge').textContent = data.job_id;
                 document.getElementById('durationStat').textContent = data.duration.toFixed(1) + 's';
 
                 if (data.voice_changed) {
-                    document.getElementById('voiceChangedBtn').href = data.voice_changed;
+                    document.getElementById('voiceChangedBtn').href = API_BASE + data.voice_changed;
                     document.getElementById('voiceChangedBtn').style.display = 'flex';
                 } else {
                     document.getElementById('voiceChangedBtn').style.display = 'none';
