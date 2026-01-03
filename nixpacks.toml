@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["python311", "ffmpeg"]
+nixPkgs = ["python311Full", "python311Packages.pip", "ffmpeg"]
 
 [phases.install]
-cmds = ["python3 -m pip install --upgrade pip", "python3 -m pip install -r requirements.txt"]
+cmds = ["pip install -r requirements.txt"]
 
 [start]
-cmd = "python3 -m gunicorn app:app --bind 0.0.0.0:$PORT"
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT"
