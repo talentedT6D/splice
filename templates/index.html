@@ -737,7 +737,7 @@
             const formData = new FormData();
             formData.append('video', file);
 
-            const API_BASE = (window.SPLICE_API_BASE || window.location.origin).replace(/\/$/, '');
+            const API_BASE = 'https://splice-production-4e8e.up.railway.app';
 
             try {
                 const response = await fetch(API_BASE + '/process', {
