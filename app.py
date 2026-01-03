@@ -62,13 +62,13 @@ def split_video(video_path, output_dir, job_id):
     part1_path = output_dir / f"{job_id}_part1.mp4"
     part2_path = output_dir / f"{job_id}_part2.mp4"
 
-    # Part 1: from start to split_point, scale to 720p
+    # Part 1: from start to split_point, scale to 720p (ultrafast for speed)
     cmd1 = [
         "ffmpeg", "-y", "-i", str(video_path),
         "-t", str(split_point),
         "-vf", "scale=720:-2",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-        "-c:a", "aac", "-b:a", "128k",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+        "-c:a", "aac", "-b:a", "96k",
         str(part1_path)
     ]
     subprocess.run(cmd1, capture_output=True)
@@ -76,12 +76,13 @@ def split_video(video_path, output_dir, job_id):
     # Part 2: from split_point to end (max 29.9 seconds), scale to 720p
     remaining = min(duration - split_point, 29.9)
     cmd2 = [
-        "ffmpeg", "-y", "-i", str(video_path),
-        "-ss", str(split_point),
+        "ffmpeg", "-y",
+        "-ss", str(split_point),  # seek before input for speed
+        "-i", str(video_path),
         "-t", str(remaining),
         "-vf", "scale=720:-2",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-        "-c:a", "aac", "-b:a", "128k",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+        "-c:a", "aac", "-b:a", "96k",
         str(part2_path)
     ]
     subprocess.run(cmd2, capture_output=True)
