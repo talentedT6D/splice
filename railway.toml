@@ -2,4 +2,6 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "/app/venv/bin/gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300 --workers 2"
+startCommand = "/app/venv/bin/gunicorn app:app --bind 0.0.0.0:$PORT --timeout 600 --workers 1"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
