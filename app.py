@@ -40,7 +40,7 @@ def get_video_duration(video_path):
 
 
 def split_video(video_path, output_dir, job_id):
-    """Split video into two parts, each less than 30 seconds."""
+    """Split video into two parts, each less than 30 seconds, output at 720p."""
     duration = get_video_duration(video_path)
 
     # Calculate split point (middle of video)
@@ -53,22 +53,26 @@ def split_video(video_path, output_dir, job_id):
     part1_path = output_dir / f"{job_id}_part1.mp4"
     part2_path = output_dir / f"{job_id}_part2.mp4"
 
-    # Part 1: from start to split_point
+    # Part 1: from start to split_point, scale to 720p
     cmd1 = [
         "ffmpeg", "-y", "-i", str(video_path),
         "-t", str(split_point),
-        "-c", "copy",
+        "-vf", "scale=-2:720",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-c:a", "aac", "-b:a", "128k",
         str(part1_path)
     ]
     subprocess.run(cmd1, capture_output=True)
 
-    # Part 2: from split_point to end (max 29.9 seconds)
+    # Part 2: from split_point to end (max 29.9 seconds), scale to 720p
     remaining = min(duration - split_point, 29.9)
     cmd2 = [
         "ffmpeg", "-y", "-i", str(video_path),
         "-ss", str(split_point),
         "-t", str(remaining),
-        "-c", "copy",
+        "-vf", "scale=-2:720",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-c:a", "aac", "-b:a", "128k",
         str(part2_path)
     ]
     subprocess.run(cmd2, capture_output=True)
