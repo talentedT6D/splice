@@ -177,12 +177,8 @@ def process_video():
         # Extract audio
         audio_path = extract_audio(video_path, OUTPUT_FOLDER, job_id)
 
-        # Voice change with ElevenLabs (skip if request param says so)
-        skip_voice = request.form.get('skip_voice', 'false').lower() == 'true'
-        if skip_voice:
-            voice_path, error = None, "Skipped"
-        else:
-            voice_path, error = voice_change_elevenlabs(audio_path, OUTPUT_FOLDER, job_id)
+        # Voice change with ElevenLabs
+        voice_path, error = voice_change_elevenlabs(audio_path, OUTPUT_FOLDER, job_id)
 
         result = {
             "job_id": job_id,
