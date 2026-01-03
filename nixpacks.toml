@@ -6,3 +6,4 @@ cmds = ["python3 -m venv /app/venv", "/app/venv/bin/pip install -r requirements.
 
 [start]
 cmd = "bash -c 'source /app/venv/bin/activate && gunicorn app:app --bind 0.0.0.0:$PORT'"
+# retry
