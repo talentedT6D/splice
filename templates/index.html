@@ -525,6 +525,98 @@
             color: var(--paper);
         }
 
+        /* Options Panel */
+        .options-panel {
+            margin-bottom: 24px;
+            animation: fadeUp 0.8s ease-out 0.15s both;
+        }
+
+        .toggle-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 16px 20px;
+            background: var(--cream);
+            border: 2px solid var(--ink);
+            transition: all 0.3s ease;
+        }
+
+        .toggle-option:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .toggle-option input {
+            display: none;
+        }
+
+        .toggle-slider {
+            width: 44px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            position: relative;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-option input:checked + .toggle-slider {
+            background: var(--accent);
+        }
+
+        .toggle-option input:checked + .toggle-slider::after {
+            left: 23px;
+        }
+
+        .toggle-label {
+            font-family: 'Syne', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Share buttons */
+        .share-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: #25D366;
+            border: 2px solid #25D366;
+            padding: 16px 24px;
+            text-decoration: none;
+            color: white;
+            font-family: 'Syne', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            cursor: pointer;
+        }
+
+        .share-btn:hover {
+            background: #128C7E;
+            border-color: #128C7E;
+            transform: translateY(-2px);
+        }
+
+        .share-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
         /* Error */
         .error {
             background: #fff0f0;
@@ -716,7 +808,15 @@
         </header>
 
         <div class="info-banner">
-            <p>Upload a video <strong>(max 60 seconds)</strong>. It will be split into two parts, each under 30 seconds. Audio is transformed using <strong>Avantika's voice</strong> via ElevenLabs.</p>
+            <p>Upload a video <strong>(any length)</strong>. It will be split into multiple parts, each under 30 seconds. Optionally transform audio using <strong>Avantika's voice</strong> via ElevenLabs.</p>
+        </div>
+
+        <div class="options-panel" id="optionsPanel">
+            <label class="toggle-option">
+                <input type="checkbox" id="elevenlabsToggle">
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">Voice Transform (ElevenLabs)</span>
+            </label>
         </div>
 
         <div class="upload-zone" id="uploadBox">
@@ -730,7 +830,7 @@
                 </svg>
             </div>
             <div class="upload-title">Drop your video here</div>
-            <div class="upload-hint">MP4, MOV, WebM — Maximum 60 seconds</div>
+            <div class="upload-hint">MP4, MOV, WebM — Any length supported</div>
             <input type="file" id="fileInput" accept="video/*">
         </div>
 
@@ -757,7 +857,7 @@
                     <div class="stat-label">Original Duration</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value">2</div>
+                    <div class="stat-value" id="partsCountStat">—</div>
                     <div class="stat-label">Parts Created</div>
                 </div>
                 <div class="stat">
@@ -768,15 +868,15 @@
 
             <div class="result-section">
                 <div class="section-label">Video Parts</div>
-                <div class="download-grid">
-                    <a href="#" class="download-btn" id="part1Btn">
-                        <span>Part 1</span>
-                        <span class="arrow">→</span>
-                    </a>
-                    <a href="#" class="download-btn" id="part2Btn">
-                        <span>Part 2</span>
-                        <span class="arrow">→</span>
-                    </a>
+                <div class="download-grid" id="partsGrid">
+                    <!-- Parts will be dynamically added here -->
+                </div>
+            </div>
+
+            <div class="result-section" id="shareSection">
+                <div class="section-label">Share on WhatsApp</div>
+                <div class="download-grid" id="shareGrid">
+                    <!-- Share buttons will be dynamically added here -->
                 </div>
             </div>
 
@@ -787,7 +887,7 @@
                         <span>Original Audio</span>
                         <span class="arrow">→</span>
                     </a>
-                    <a href="#" class="download-btn voice-btn" id="voiceChangedBtn">
+                    <a href="#" class="download-btn voice-btn" id="voiceChangedBtn" style="display: none;">
                         <div>
                             <span>Voice Transformed</span>
                             <div class="voice-label">Avantika via ElevenLabs</div>
@@ -811,6 +911,13 @@
         const processing = document.getElementById('processing');
         const results = document.getElementById('results');
         const errorDiv = document.getElementById('error');
+        const optionsPanel = document.getElementById('optionsPanel');
+        const elevenlabsToggle = document.getElementById('elevenlabsToggle');
+
+        const API_BASE = 'https://web-production-4d4b0.up.railway.app';
+
+        // Store processed video URLs for sharing
+        let processedParts = [];
 
         uploadBox.addEventListener('click', () => fileInput.click());
 
@@ -845,13 +952,13 @@
             }
 
             uploadBox.style.display = 'none';
+            optionsPanel.style.display = 'none';
             processing.style.display = 'block';
             errorDiv.style.display = 'none';
 
             const formData = new FormData();
             formData.append('video', file);
-
-            const API_BASE = 'https://web-production-4d4b0.up.railway.app';
+            formData.append('use_elevenlabs', elevenlabsToggle.checked ? 'true' : 'false');
 
             try {
                 const response = await fetch(API_BASE + '/process', {
@@ -869,11 +976,43 @@
                 processing.style.display = 'none';
                 results.style.display = 'block';
 
-                document.getElementById('part1Btn').href = API_BASE + data.part1;
-                document.getElementById('part2Btn').href = API_BASE + data.part2;
-                document.getElementById('originalAudioBtn').href = API_BASE + data.original_audio;
+                // Store parts for sharing
+                processedParts = data.parts.map(p => API_BASE + p);
+
+                // Update stats
                 document.getElementById('jobIdBadge').textContent = data.job_id;
                 document.getElementById('durationStat').textContent = data.duration.toFixed(1) + 's';
+                document.getElementById('partsCountStat').textContent = data.num_parts;
+
+                // Build parts grid dynamically
+                const partsGrid = document.getElementById('partsGrid');
+                partsGrid.innerHTML = '';
+                data.parts.forEach((partUrl, index) => {
+                    const btn = document.createElement('a');
+                    btn.href = API_BASE + partUrl;
+                    btn.className = 'download-btn';
+                    btn.innerHTML = `<span>Part ${index + 1}</span><span class="arrow">→</span>`;
+                    partsGrid.appendChild(btn);
+                });
+
+                // Build share grid dynamically
+                const shareGrid = document.getElementById('shareGrid');
+                shareGrid.innerHTML = '';
+                data.parts.forEach((partUrl, index) => {
+                    const shareBtn = document.createElement('button');
+                    shareBtn.className = 'share-btn';
+                    shareBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                        Share Part ${index + 1}
+                    `;
+                    shareBtn.onclick = () => shareOnWhatsApp(API_BASE + partUrl, index + 1);
+                    shareGrid.appendChild(shareBtn);
+                });
+
+                // Audio section
+                document.getElementById('originalAudioBtn').href = API_BASE + data.original_audio;
 
                 if (data.voice_changed) {
                     document.getElementById('voiceChangedBtn').href = API_BASE + data.voice_changed;
@@ -887,9 +1026,37 @@
             }
         }
 
+        async function shareOnWhatsApp(videoUrl, partNum) {
+            // Check if Web Share API is available and supports files
+            if (navigator.share && navigator.canShare) {
+                try {
+                    // Fetch the video file
+                    const response = await fetch(videoUrl);
+                    const blob = await response.blob();
+                    const file = new File([blob], `video_part${partNum}.mp4`, { type: 'video/mp4' });
+
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: `Video Part ${partNum}`,
+                            text: `Check out this video! Part ${partNum}`
+                        });
+                        return;
+                    }
+                } catch (err) {
+                    console.log('Native share failed, falling back to WhatsApp link');
+                }
+            }
+
+            // Fallback: Open WhatsApp with a message containing the video link
+            const message = encodeURIComponent(`Check out this video! Part ${partNum}: ${videoUrl}`);
+            window.open(`https://wa.me/?text=${message}`, '_blank');
+        }
+
         function showError(message) {
             processing.style.display = 'none';
             uploadBox.style.display = 'block';
+            optionsPanel.style.display = 'block';
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
@@ -897,8 +1064,10 @@
         function resetForm() {
             results.style.display = 'none';
             uploadBox.style.display = 'block';
+            optionsPanel.style.display = 'block';
             fileInput.value = '';
             errorDiv.style.display = 'none';
+            processedParts = [];
         }
     </script>
 </body>
