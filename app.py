@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 import os
 import subprocess
@@ -49,45 +49,47 @@ def get_video_duration(video_path):
 
 
 def split_video(video_path, output_dir, job_id):
-    """Split video into two parts, each less than 30 seconds, output at 720p."""
+    """Split video into multiple parts, each less than 30 seconds, output at 720p."""
     duration = get_video_duration(video_path)
+    max_part_duration = 29.9
 
-    # Calculate split point (middle of video)
-    split_point = duration / 2
+    # Calculate number of parts needed
+    num_parts = int(duration // max_part_duration) + (1 if duration % max_part_duration > 0 else 0)
 
-    # Ensure each part is less than 30 seconds
-    if split_point > 29.9:
-        split_point = 29.9
+    # Ensure at least 2 parts for consistency
+    if num_parts < 2:
+        num_parts = 2
+        max_part_duration = duration / 2
 
-    part1_path = output_dir / f"{job_id}_part1.mp4"
-    part2_path = output_dir / f"{job_id}_part2.mp4"
+    parts = []
+    current_time = 0
 
-    # Part 1: from start to split_point, scale to 720p (ultrafast for speed)
-    cmd1 = [
-        "ffmpeg", "-y", "-i", str(video_path),
-        "-t", str(split_point),
-        "-vf", "scale=720:-2",
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-        "-c:a", "aac", "-b:a", "96k",
-        str(part1_path)
-    ]
-    subprocess.run(cmd1, capture_output=True)
+    for i in range(num_parts):
+        part_num = i + 1
+        part_path = output_dir / f"{job_id}_part{part_num}.mp4"
 
-    # Part 2: from split_point to end (max 29.9 seconds), scale to 720p
-    remaining = min(duration - split_point, 29.9)
-    cmd2 = [
-        "ffmpeg", "-y",
-        "-ss", str(split_point),  # seek before input for speed
-        "-i", str(video_path),
-        "-t", str(remaining),
-        "-vf", "scale=720:-2",
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-        "-c:a", "aac", "-b:a", "96k",
-        str(part2_path)
-    ]
-    subprocess.run(cmd2, capture_output=True)
+        # Calculate duration for this part
+        remaining_duration = duration - current_time
+        part_duration = min(max_part_duration, remaining_duration)
 
-    return part1_path, part2_path
+        # Skip if no duration left
+        if part_duration <= 0:
+            break
+
+        cmd = [
+            "ffmpeg", "-y", "-i", str(video_path),
+            "-ss", str(current_time),
+            "-t", str(part_duration),
+            "-vf", "scale=720:-2",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k",
+            str(part_path)
+        ]
+        subprocess.run(cmd, capture_output=True)
+        parts.append(part_path)
+        current_time += part_duration
+
+    return parts
 
 
 def extract_audio(video_path, output_dir, job_id):
@@ -141,7 +143,7 @@ def voice_change_elevenlabs(audio_path, output_dir, job_id):
 
 @app.route("/")
 def index():
-    return jsonify({"status": "ok", "message": "Splice API Backend"})
+    return render_template("index.html")
 
 
 @app.route("/process", methods=["POST", "OPTIONS"])
@@ -157,6 +159,9 @@ def process_video():
     if video.filename == "":
         return jsonify({"error": "No video selected"}), 400
 
+    # Get ElevenLabs toggle (default: off)
+    use_elevenlabs = request.form.get("use_elevenlabs", "false").lower() == "true"
+
     # Generate unique job ID
     job_id = str(uuid.uuid4())[:8]
 
@@ -169,30 +174,28 @@ def process_video():
         # Get duration
         duration = get_video_duration(video_path)
 
-        if duration > 60:
-            return jsonify({"error": "Video must be 60 seconds or less"}), 400
-
-        # Split video
-        part1_path, part2_path = split_video(video_path, OUTPUT_FOLDER, job_id)
+        # Split video into parts (each <30 seconds)
+        parts = split_video(video_path, OUTPUT_FOLDER, job_id)
 
         # Extract audio
         audio_path = extract_audio(video_path, OUTPUT_FOLDER, job_id)
 
-        # Voice change with ElevenLabs
-        voice_path, error = voice_change_elevenlabs(audio_path, OUTPUT_FOLDER, job_id)
-
         result = {
             "job_id": job_id,
             "duration": duration,
-            "part1": f"/download/{job_id}_part1.mp4",
-            "part2": f"/download/{job_id}_part2.mp4",
+            "num_parts": len(parts),
+            "parts": [f"/download/{job_id}_part{i+1}.mp4" for i in range(len(parts))],
             "original_audio": f"/download/{job_id}_audio.mp3",
+            "elevenlabs_enabled": use_elevenlabs,
         }
 
-        if voice_path:
-            result["voice_changed"] = f"/download/{job_id}_voice_changed.mp3"
-        else:
-            result["voice_error"] = error
+        # Voice change with ElevenLabs only if enabled
+        if use_elevenlabs:
+            voice_path, error = voice_change_elevenlabs(audio_path, OUTPUT_FOLDER, job_id)
+            if voice_path:
+                result["voice_changed"] = f"/download/{job_id}_voice_changed.mp3"
+            else:
+                result["voice_error"] = error
 
         return jsonify(result)
 
